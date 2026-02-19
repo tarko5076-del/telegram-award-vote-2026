@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import NomineeCard from './components/NomineeCard';
 import VotePopup from './components/VotePopup';
-// import Admin from './components/Admin';
 
 function App() {
   const [categories, setCategories] = useState([]);
@@ -68,6 +67,17 @@ function App() {
       <header>
         <h1>Telegram Awards 2026</h1>
         <p>Vote for your favorites • One vote per category</p>
+
+        {/* Optional small credit in header */}
+        <p style={{
+          fontSize: '0.85rem',
+          opacity: 0.8,
+          marginTop: '0.5rem',
+          color: '#94a3b8'
+        }}>
+          Developed by Tarko Melkie • UI/UX Design by Fikr Getaneh
+        </p>
+
         {totalVotes > 0 && <div className="total-votes">Total votes cast: {totalVotes}</div>}
       </header>
 
@@ -98,8 +108,39 @@ function App() {
         ))}
       </main>
 
-      <footer>
-        <p>Community Voting Platform • Central Ethiopia Regional State • 2026</p>
+      <footer style={{
+        marginTop: 'auto',
+        padding: '2.5rem 1rem',
+        textAlign: 'center',
+        background: 'linear-gradient(to top, #0f172a, #1e293b)',
+        color: '#94a3b8',
+        fontSize: '0.95rem',
+        borderTop: '1px solid #334155'
+      }}>
+        <p style={{ marginBottom: '0.8rem', fontSize: '1.1rem', fontWeight: '600' }}>
+          © 2026 Telegram Awards. All rights reserved.community show case of appreciation for the best in the Telegram ecosystem.
+        </p>
+
+        <p style={{ margin: '0.5rem 0' }}>
+          Developed by <strong>Tarko Melkie</strong> •
+          <a
+            href="https://t.me/hucs145" 
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: '#60a5fa',
+              textDecoration: 'none',
+              marginLeft: '0.4rem',
+              fontWeight: '500'
+            }}
+          >
+            codewars
+          </a>
+        </p>
+
+        <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
+          UI & UX Design by <strong>Fikr Getaneh</strong>
+        </p>
       </footer>
 
       {showPopup && (

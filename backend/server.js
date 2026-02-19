@@ -1,27 +1,33 @@
-// server.js - Full working backend server
+// server.js - Full working backend server (fixed order)
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
 const pool = require('./config/db');
 
-// Import routes
-const nomineeRoutes = require('./routes/nominees');
-const voteRoutes = require('./routes/votes');
-
+// Create Express app FIRST (this must be before any app.use or app.get)
 const app = express();
 
-// Middleware
+// Middleware (now safe - app exists)
 app.use(cors());
 app.use(express.json());
 
-// Database connection check on startup
+// Import routes (after app exists)
+const nomineeRoutes = require('./routes/nominees');
+const voteRoutes = require('./routes/votes');
+const authRoutes = require('./routes/auth'); // if you have this
+
+// Use routes
+app.use('/api/nominees', nomineeRoutes);
+app.use('/api/votes', voteRoutes);
+app.use('/api/auth', authRoutes); // if you added auth
+
+// Database connection check on startup (can stay here)
 (async () => {
   try {
     const connection = await pool.getConnection();
     console.log('✅ MySQL connection pool initialized successfully');
     
-    // Optional: quick sanity check
     const [dbInfo] = await connection.query('SELECT DATABASE() as db, VERSION() as version');
     console.log(`Database: ${dbInfo[0].db} | MySQL version: ${dbInfo[0].version}`);
     
@@ -31,23 +37,13 @@ app.use(express.json());
     console.error(err.message);
     if (err.code) {
       console.error(`Error code: ${err.code}`);
-      if (err.code === 'ER_ACCESS_DENIED_ERROR') {
-        console.error(' → Check DB_USER / DB_PASS in .env');
-      }
-      if (err.code === 'ER_BAD_DB_ERROR') {
-        console.error(' → Check DB_NAME in .env (database may not exist)');
-      }
-      if (err.code === 'ECONNREFUSED') {
-        console.error(' → MySQL server is not running or wrong host/port');
-      }
+      if (err.code === 'ER_ACCESS_DENIED_ERROR') console.error(' → Check DB_USER / DB_PASS');
+      if (err.code === 'ER_BAD_DB_ERROR') console.error(' → Check DB_NAME (database may not exist)');
+      if (err.code === 'ECONNREFUSED') console.error(' → MySQL server not running or wrong host/port');
     }
-    process.exit(1); // Exit if DB is critical and fails
+    process.exit(1);
   }
 })();
-
-// Routes
-app.use('/api/nominees', nomineeRoutes);
-app.use('/api/votes', voteRoutes);
 
 // Simple health check / welcome route
 app.get('/', (req, res) => {

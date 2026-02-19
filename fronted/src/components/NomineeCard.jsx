@@ -1,4 +1,3 @@
-// src/components/NomineeCard.jsx
 import { useState } from 'react';
 
 function NomineeCard({ nominee, percentage, disabled, onVote }) {
@@ -7,7 +6,7 @@ function NomineeCard({ nominee, percentage, disabled, onVote }) {
   const handlePressStart = (e) => {
     if (disabled) return;
 
-    // For ripple effect - calculate touch position relative to button
+    // Calculate touch position for ripple
     if (e.touches && e.touches.length > 0) {
       const btn = e.currentTarget;
       const rect = btn.getBoundingClientRect();
@@ -25,39 +24,55 @@ function NomineeCard({ nominee, percentage, disabled, onVote }) {
   const handlePressEnd = () => {
     if (disabled) return;
     setIsPressing(false);
-    onVote(); // only trigger vote on release (more natural on touch devices)
+    onVote(); // Trigger vote on release
   };
 
-  // Fallback image using ui-avatars (more reliable than picsum for names)
+  // Very reliable fallback — uses ui-avatars with name
   const fallbackImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    nominee.name
-  )}&background=0d9cf5&color=fff&size=256&bold=true`;
+    nominee.name || 'Unknown'
+  )}&background=0d9cf5&color=fff&size=256&bold=true&rounded=true`;
+
+  // Debug: log when component renders and what URL is used
+  console.log('NomineeCard rendered:', {
+    name: nominee.name,
+    imageUrl: nominee.image || nominee.image_url || 'no url',
+    fallback: fallbackImage
+  });
 
   return (
     <div className="nominee-card">
       <div className="image-wrapper">
         <img
-          src={nominee.image || fallbackImage}
-          alt={nominee.name}
+          src={nominee.image || nominee.image_url || fallbackImage}  // ← try image first, then image_url, then fallback
+          alt={nominee.name || 'Nominee'}
           className="nominee-image"
+          loading="lazy"  // improves performance
+          crossOrigin="anonymous"  // helps with some CORS edge cases
+          onLoad={() => console.log('Image loaded OK:', nominee.name)}
           onError={(e) => {
-            e.target.src = fallbackImage;
+            console.error('Image FAILED to load:', {
+              name: nominee.name,
+              attemptedUrl: e.target.src,
+              fallbackUsed: fallbackImage
+            });
+            e.target.src = fallbackImage; // switch to fallback
+            e.target.onerror = null; // prevent infinite loop
           }}
         />
       </div>
 
       <div className="card-content">
-        <h3 className="card-name">{nominee.name}</h3>
+        <h3 className="card-name">{nominee.name || 'Unnamed'}</h3>
 
         <div className="vote-stats">
-          <span>Votes: {nominee.votes}</span>
+          <span>Votes: {nominee.votes || 0}</span>
           <span className="percentage">{percentage}%</span>
         </div>
 
         <div className="progress-outer">
           <div
             className="progress-inner"
-            style={{ width: `${percentage}%` }}
+            style={{ width: `${percentage || 0}%` }}
           />
         </div>
 
@@ -70,7 +85,6 @@ function NomineeCard({ nominee, percentage, disabled, onVote }) {
           onMouseDown={handlePressStart}
           onMouseUp={handlePressEnd}
           onClick={(e) => {
-            // Prevent double-trigger on desktop (touch events already handled)
             if (!('ontouchstart' in window)) {
               onVote();
             }
