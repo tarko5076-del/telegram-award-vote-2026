@@ -1,13 +1,22 @@
-const mysql = require('mysql2/promise');
+// db.js  ← this is your connection file
+const { Pool } = require('pg');
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,     // ← this must match your existing database name
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,  // ← Render provides this internally
+  // NO ssl line needed here! Internal connections are private & secure without it
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000
 });
+
+// Optional test (keep this – prints in logs)
+(async () => {
+  try {
+    await pool.connect();
+    console.log('✅ Connected to PostgreSQL INTERNAL on Render!');
+  } catch (err) {
+    console.error('❌ Connection failed:', err.message);
+  }
+})();
 
 module.exports = pool;
