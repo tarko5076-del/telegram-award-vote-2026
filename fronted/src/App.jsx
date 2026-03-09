@@ -17,37 +17,38 @@ function App() {
       setFetchError(null);
 
       try {
-        console.log('Frontend: Fetching from http://localhost:5000/api/nominees');
+        // Use environment variable for live deployment (Vercel)
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        console.log('Frontend: Fetching from:', `${API_URL}/api/nominees`);
 
-        const response = await fetch('http://localhost:5000/api/nominees', {
+        const response = await fetch(`${API_URL}/api/nominees`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           mode: 'cors',
           cache: 'no-cache'
         });
 
-        console.log('Frontend: Response status:', response.status);
+        console.log('Frontend: Response status:', response.status, response.statusText);
 
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`Backend returned ${response.status}: ${errorText}`);
+          throw new Error(`Backend error ${response.status}: ${errorText}`);
         }
 
         const data = await response.json();
-        console.log('Frontend: Full data from backend:', data);
+        console.log('Frontend: Full data received:', data);
+        console.log('Frontend: Is array?', Array.isArray(data));
+        console.log('Frontend: Number of categories:', data?.length || 0);
+        console.log('Frontend: First category title:', data?.[0]?.title || 'none');
 
-        // Ensure it's an array
         if (!Array.isArray(data)) {
           throw new Error('Backend data is not an array');
         }
 
-        console.log('Frontend: Number of categories loaded:', data.length);
         setCategories(data);
       } catch (err) {
-        console.error('Frontend fetch error:', err);
-        setFetchError(err.message || 'Failed to load nominees');
+        console.error('Frontend fetch failed:', err);
+        setFetchError(err.message || 'Failed to load awards');
       } finally {
         setIsLoading(false);
       }
@@ -56,7 +57,6 @@ function App() {
     fetchNominees();
   }, []);
 
-  // Calculate total votes safely
   const totalVotes = categories.reduce((sum, cat) => {
     return sum + (cat?.nominees || []).reduce((s, n) => s + (n?.votes || 0), 0);
   }, 0);
@@ -66,7 +66,8 @@ function App() {
     if (!categoryTitle || votedCategories[categoryTitle]) return;
 
     try {
-      const response = await fetch('http://localhost:5000/api/votes/vote', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_URL}/api/votes/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nominee_id: nomineeId, category: categoryTitle })
@@ -77,8 +78,8 @@ function App() {
         throw new Error(errData.error || 'Vote failed');
       }
 
-      // Refresh after vote
-      const refresh = await fetch('http://localhost:5000/api/nominees');
+      // Refresh data after vote
+      const refresh = await fetch(`${API_URL}/api/nominees`);
       const refreshed = await refresh.json();
       setCategories(refreshed);
 
@@ -113,7 +114,7 @@ function App() {
       <main>
         {categories.length === 0 ? (
           <p style={{ textAlign: 'center', color: '#94a3b8', margin: '2rem 0' }}>
-            No categories loaded yet. Open console (F12) for details.
+            No categories loaded yet. Check console (F12) for fetch details.
           </p>
         ) : (
           categories.map((category, catIndex) => (
@@ -142,7 +143,6 @@ function App() {
         )}
       </main>
 
-      {/* Footer and Popup */}
       <footer style={{
         marginTop: 'auto',
         padding: '2.5rem 1rem',
