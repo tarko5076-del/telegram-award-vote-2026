@@ -1,45 +1,48 @@
-// backend/routes/nominees.js
+// backend/routes/nominees.js - PostgreSQL version (pg library)
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
-// GET /api/nominees - grouped for frontend (your original code)
+// GET /api/nominees - grouped by category for frontend
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM nominees ORDER BY category, name');
+    const result = await pool.query('SELECT * FROM nominees ORDER BY category, name');
+    const rows = result.rows;  // pg returns { rows: [...] }
 
-    // Group by category (your existing logic)
+    // Group by category
     const grouped = rows.reduce((acc, nom) => {
       if (!acc[nom.category]) acc[nom.category] = [];
       acc[nom.category].push(nom);
       return acc;
     }, {});
 
-    const result = Object.entries(grouped).map(([title, nominees]) => ({
+    const formatted = Object.entries(grouped).map(([title, nominees]) => ({
       title,
-      
       nominees
     }));
 
-    res.json(result);
+    res.json(formatted);
   } catch (err) {
-    console.error('Error fetching grouped nominees:', err);
+    console.error('Error fetching grouped nominees:', err.message);
+    console.error('Full error:', err);
     res.status(500).json({ error: 'Failed to fetch nominees' });
   }
 });
 
-// GET /api/nominees/all - raw list for admin dashboard
+// GET /api/nominees/all - raw list (for admin)
 router.get('/all', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT id, category, name, image_url, votes FROM nominees ORDER BY category, name');
-    res.json(rows);
+    const result = await pool.query(
+      'SELECT id, category, name, image_url FROM nominees ORDER BY category, name'
+    );
+    res.json(result.rows);
   } catch (err) {
-    console.error('Error fetching all nominees:', err);
+    console.error('Error fetching all nominees:', err.message);
     res.status(500).json({ error: 'Failed to fetch nominees' });
   }
 });
 
-// POST /api/nominees/add - add new nominee from admin
+// POST /api/nominees/add - add new nominee
 router.post('/add', async (req, res) => {
   const { category, name, image_url } = req.body;
 
@@ -48,18 +51,18 @@ router.post('/add', async (req, res) => {
   }
 
   try {
-    const [result] = await pool.query(
-      'INSERT INTO nominees (category, name, image_url, votes) VALUES (?, ?, ?, 0)',
+    const result = await pool.query(
+      'INSERT INTO nominees (category, name, image_url) VALUES ($1, $2, $3) RETURNING id',
       [category, name, image_url || null]
     );
 
     res.status(201).json({
       success: true,
       message: 'Nominee added successfully',
-      id: result.insertId
+      id: result.rows[0].id
     });
   } catch (err) {
-    console.error('Error adding nominee:', err);
+    console.error('Error adding nominee:', err.message);
     res.status(500).json({ error: 'Failed to add nominee' });
   }
 });

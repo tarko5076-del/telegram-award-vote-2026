@@ -7,31 +7,63 @@ function App() {
   const [categories, setCategories] = useState([]);
   const [votedCategories, setVotedCategories] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [votedNomineeName, setVotedNomineeName] = useState('');
 
   useEffect(() => {
     const fetchNominees = async () => {
+      setIsLoading(true);
+      setFetchError(null);
+
       try {
-        const response = await fetch('http://localhost:5000/api/nominees');
-        if (!response.ok) throw new Error('Failed to fetch');
+        console.log('Frontend: Fetching from http://localhost:5000/api/nominees');
+
+        const response = await fetch('http://localhost:5000/api/nominees', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          mode: 'cors',
+          cache: 'no-cache'
+        });
+
+        console.log('Frontend: Response status:', response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Backend returned ${response.status}: ${errorText}`);
+        }
+
         const data = await response.json();
+        console.log('Frontend: Full data from backend:', data);
+
+        // Ensure it's an array
+        if (!Array.isArray(data)) {
+          throw new Error('Backend data is not an array');
+        }
+
+        console.log('Frontend: Number of categories loaded:', data.length);
         setCategories(data);
       } catch (err) {
-        console.error('Fetch error:', err);
+        console.error('Frontend fetch error:', err);
+        setFetchError(err.message || 'Failed to load nominees');
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchNominees();
   }, []);
 
-  const totalVotes = categories.reduce((sum, cat) =>
-    sum + cat.nominees.reduce((s, n) => s + n.votes, 0), 0);
+  // Calculate total votes safely
+  const totalVotes = categories.reduce((sum, cat) => {
+    return sum + (cat?.nominees || []).reduce((s, n) => s + (n?.votes || 0), 0);
+  }, 0);
 
   const handleVote = async (categoryIndex, nomineeId) => {
-    const categoryTitle = categories[categoryIndex].title;
-    if (votedCategories[categoryTitle]) return;
+    const categoryTitle = categories[categoryIndex]?.title;
+    if (!categoryTitle || votedCategories[categoryTitle]) return;
 
     try {
       const response = await fetch('http://localhost:5000/api/votes/vote', {
@@ -45,13 +77,14 @@ function App() {
         throw new Error(errData.error || 'Vote failed');
       }
 
-      const data = await response.json();
-      setCategories(data.nominees);
+      // Refresh after vote
+      const refresh = await fetch('http://localhost:5000/api/nominees');
+      const refreshed = await refresh.json();
+      setCategories(refreshed);
 
       const nomineeName = categories[categoryIndex]?.nominees.find(n => n.id === nomineeId)?.name || "this nominee";
       setVotedNomineeName(nomineeName);
       setShowPopup(true);
-
       setVotedCategories(prev => ({ ...prev, [categoryTitle]: true }));
 
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
@@ -62,19 +95,15 @@ function App() {
 
   if (isLoading) return <div className="loading-screen">Loading awards...</div>;
 
+  if (fetchError) return <div className="error-screen">Error: {fetchError}</div>;
+
   return (
     <div className="container">
       <header>
         <h1>Telegram Awards 2026</h1>
         <p>Vote for your favorites • One vote per category</p>
 
-        {/* Optional small credit in header */}
-        <p style={{
-          fontSize: '0.85rem',
-          opacity: 0.8,
-          marginTop: '0.5rem',
-          color: '#94a3b8'
-        }}>
+        <p style={{ fontSize: '0.85rem', opacity: 0.8, marginTop: '0.5rem', color: '#94a3b8' }}>
           Developed by Tarko Melkie • UI/UX Design by Fikr Getaneh
         </p>
 
@@ -82,32 +111,38 @@ function App() {
       </header>
 
       <main>
-        {categories.map((category, catIndex) => (
-          <section key={category.title} className="category-section">
-            <h2>{category.title}</h2>
-            <p>{category.description}</p>
+        {categories.length === 0 ? (
+          <p style={{ textAlign: 'center', color: '#94a3b8', margin: '2rem 0' }}>
+            No categories loaded yet. Open console (F12) for details.
+          </p>
+        ) : (
+          categories.map((category, catIndex) => (
+            <section key={category.title} className="category-section">
+              <h2>{category.title}</h2>
 
-            <div className="nominees-wrapper">
-              {category.nominees.map(nominee => {
-                const percentage = totalVotes > 0
-                  ? Math.round((nominee.votes / totalVotes) * 100)
-                  : 0;
+              <div className="nominees-wrapper">
+                {category.nominees?.map(nominee => {
+                  const percentage = totalVotes > 0
+                    ? Math.round(((nominee.votes || 0) / totalVotes) * 100)
+                    : 0;
 
-                return (
-                  <NomineeCard
-                    key={nominee.id}
-                    nominee={nominee}
-                    percentage={percentage}
-                    disabled={votedCategories[category.title]}
-                    onVote={() => handleVote(catIndex, nominee.id)}
-                  />
-                );
-              })}
-            </div>
-          </section>
-        ))}
+                  return (
+                    <NomineeCard
+                      key={nominee.id}
+                      nominee={nominee}
+                      percentage={percentage}
+                      disabled={votedCategories[category.title]}
+                      onVote={() => handleVote(catIndex, nominee.id)}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          ))
+        )}
       </main>
 
+      {/* Footer and Popup */}
       <footer style={{
         marginTop: 'auto',
         padding: '2.5rem 1rem',
@@ -118,13 +153,13 @@ function App() {
         borderTop: '1px solid #334155'
       }}>
         <p style={{ marginBottom: '0.8rem', fontSize: '1.1rem', fontWeight: '600' }}>
-          © 2026 Telegram Awards. All rights reserved.community show case of appreciation for the best in the Telegram ecosystem.
+          © 2026 Telegram Awards. All rights reserved. Community showcase of appreciation for the best in the Telegram ecosystem.
         </p>
 
         <p style={{ margin: '0.5rem 0' }}>
           Developed by <strong>Tarko Melkie</strong> •
           <a
-            href="https://t.me/hucs145" 
+            href="https://t.me/hucs145"
             target="_blank"
             rel="noopener noreferrer"
             style={{

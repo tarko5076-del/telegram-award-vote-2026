@@ -1,57 +1,77 @@
-// server.js - Full working backend server (fixed order)
+// server.js - Corrected full version with strong CORS, stable connection, no crashes
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
 const pool = require('./config/db');
 
-// Create Express app FIRST (this must be before any app.use or app.get)
+// Create Express app
 const app = express();
 
-// Middleware (now safe - app exists)
-app.use(cors());
+// === CORS - MUST BE THE VERY FIRST MIDDLEWARE ===
+app.use(cors({
+  origin: '*',  // Wildcard for development (allows localhost:5175, 3000, etc.)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
+
+// Manual fallback headers for OPTIONS preflight (extra safety)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+// Now JSON parser and other middleware
 app.use(express.json());
 
-// Import routes (after app exists)
+// Import routes
 const nomineeRoutes = require('./routes/nominees');
 const voteRoutes = require('./routes/votes');
 const authRoutes = require('./routes/auth'); // if you have this
 
-// Use routes
+// Mount routes
 app.use('/api/nominees', nomineeRoutes);
 app.use('/api/votes', voteRoutes);
-app.use('/api/auth', authRoutes); // if you added auth
+app.use('/api/auth', authRoutes);
 
-// Database connection check on startup (can stay here)
+// Database connection check on startup - safe, no double release
 (async () => {
   try {
-    const connection = await pool.getConnection();
-    console.log('✅ MySQL connection pool initialized successfully');
-    
-    const [dbInfo] = await connection.query('SELECT DATABASE() as db, VERSION() as version');
-    console.log(`Database: ${dbInfo[0].db} | MySQL version: ${dbInfo[0].version}`);
-    
-    connection.release();
+    const client = await pool.connect();
+    console.log('✅ PostgreSQL connection pool initialized successfully');
+
+    const dbInfo = await client.query('SELECT current_database() AS db, version() AS version');
+    console.log(`Database: ${dbInfo.rows[0].db} | PostgreSQL version: ${dbInfo.rows[0].version}`);
+
+    const countRes = await client.query('SELECT COUNT(*) FROM nominees');
+    console.log(`Total nominees in DB: ${countRes.rows[0].count}`);
+
+    // No manual release - pool auto-handles
   } catch (err) {
-    console.error('❌ Failed to initialize database connection:');
-    console.error(err.message);
-    if (err.code) {
-      console.error(`Error code: ${err.code}`);
-      if (err.code === 'ER_ACCESS_DENIED_ERROR') console.error(' → Check DB_USER / DB_PASS');
-      if (err.code === 'ER_BAD_DB_ERROR') console.error(' → Check DB_NAME (database may not exist)');
-      if (err.code === 'ECONNREFUSED') console.error(' → MySQL server not running or wrong host/port');
-    }
+    console.error('❌ PostgreSQL connection failed on startup:');
+    console.error('Error code:', err.code || 'N/A');
+    console.error('Message:', err.message);
+    console.error('Stack:', err.stack);
     process.exit(1);
   }
 })();
 
-// Simple health check / welcome route
+// Health check / welcome route
 app.get('/', (req, res) => {
   res.json({
     status: 'online',
-    message: 'Telegram Awards Voting API is running',
+    message: 'Telegram Awards Voting API is running (PostgreSQL / Render)',
     timestamp: new Date().toISOString(),
     endpoints: {
+      root: '/',
       nominees: '/api/nominees (GET)',
       vote: '/api/votes/vote (POST)'
     }
@@ -65,8 +85,12 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.stack);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error('Unhandled server error:');
+  console.error(err.stack);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined 
+  });
 });
 
 // Start server
