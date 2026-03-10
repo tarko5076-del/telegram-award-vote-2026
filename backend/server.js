@@ -2,24 +2,26 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const pool = require('./config/db');
 
 // Create Express app
 const app = express();
 
 // === CORS configuration ===
+const allowedOrigins = [
+  "http://localhost:3000", // dev frontend
+  "http://localhost:5173", // Vite dev frontend
+  "https://telegram-award-vote-2026-jvzb.vercel.app", // one Vercel deploy
+  "https://telegram-award-vote-2026-5z3b.vercel.app"  // your actual deployed frontend
+];
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true); // allow Postman, curl, etc.
-
-    if (origin.startsWith("http://localhost")) {
-      return callback(null, true); // dev frontend
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
-
-    if (origin === "https://telegram-award-vote-2026-jvzb.vercel.app") {
-      return callback(null, true); // deployed frontend
-    }
-
     callback(new Error("Not allowed by CORS"));
   },
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -31,7 +33,7 @@ app.use(cors({
 // JSON parser
 app.use(express.json());
 
-// === Import routes (declare each only once) ===
+// === Import routes ===
 const nomineeRoutes = require('./routes/nominees');
 const voteRoutes    = require('./routes/votes');
 const authRoutes    = require('./routes/auth');
