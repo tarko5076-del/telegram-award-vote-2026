@@ -7,13 +7,19 @@ function Admin() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
+  // Dynamic API URL
+  const API_URL =
+    window.location.hostname === "localhost"
+      ? "http://localhost:5000"
+      : "https://telegram-awards-api.onrender.com";
+
   useEffect(() => {
     fetchNominees();
   }, []);
 
   const fetchNominees = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/nominees/all');
+      const res = await fetch(`${API_URL}/api/nominees/all`);
       const data = await res.json();
       setNominees(data);
     } catch (err) {
@@ -30,7 +36,7 @@ function Admin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/nominees/add', {
+      const res = await fetch(`${API_URL}/api/nominees/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -38,7 +44,22 @@ function Admin() {
       if (!res.ok) throw new Error('Failed');
       setMessage('Nominee added successfully!');
       setForm({ category: '', name: '', image_url: '' });
-      fetchNominees(); // refresh list
+      fetchNominees();
+    } catch (err) {
+      setMessage('Error: ' + err.message);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this nominee?")) return;
+    try {
+      const res = await fetch(`${API_URL}/api/nominees/delete/${id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+      setMessage('Nominee deleted successfully!');
+      fetchNominees();
     } catch (err) {
       setMessage('Error: ' + err.message);
     }
@@ -53,6 +74,7 @@ function Admin() {
       {message && <p style={{ color: message.includes('Error') ? 'red' : 'green' }}>{message}</p>}
 
       <form onSubmit={handleSubmit} style={{ marginBottom: '3rem' }}>
+        {/* Category */}
         <div style={{ marginBottom: '1rem' }}>
           <label>Category</label><br />
           <input
@@ -66,6 +88,7 @@ function Admin() {
           />
         </div>
 
+        {/* Name */}
         <div style={{ marginBottom: '1rem' }}>
           <label>Name</label><br />
           <input
@@ -79,6 +102,7 @@ function Admin() {
           />
         </div>
 
+        {/* Image URL */}
         <div style={{ marginBottom: '1rem' }}>
           <label>Image URL (Imgur or other direct link)</label><br />
           <input
@@ -101,7 +125,16 @@ function Admin() {
         {nominees.map(n => (
           <li key={n.id} style={{ marginBottom: '1rem', borderBottom: '1px solid #444', paddingBottom: '1rem' }}>
             <strong>{n.name}</strong> ({n.category})<br />
-            <small>{n.image_url ? <img src={n.image_url} alt={n.name} width="80" style={{ borderRadius: '8px' }} /> : 'No photo'}</small>
+            {n.image_url
+              ? <img src={n.image_url} alt={n.name} width="80" style={{ borderRadius: '8px', marginTop: '0.5rem' }} />
+              : <small>No photo</small>}
+            <br />
+            <button
+              onClick={() => handleDelete(n.id)}
+              style={{ marginTop: '0.5rem', padding: '0.5rem 1rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px' }}
+            >
+              Delete
+            </button>
           </li>
         ))}
       </ul>
