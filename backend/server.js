@@ -1,19 +1,17 @@
-// server.js - Updated version with flexible CORS
+// server.js - Updated with flexible CORS
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const pool = require('./config/db');
 
-// Create Express app
 const app = express();
 
 // === CORS configuration ===
 const allowedOrigins = [
-  "http://localhost:3000", // dev frontend
-  "http://localhost:5173", // Vite dev frontend
-  "https://telegram-award-vote-2026-jvzb.vercel.app", // one Vercel deploy
-  "https://telegram-award-vote-2026-5z3b.vercel.app"  // your actual deployed frontend
+  "http://localhost:3000",   // React dev server
+  "http://localhost:5173",   // Vite dev server
+  "https://telegram-award-vote-2026-drex.vercel.app", // current Vercel frontend
+  "https://telegram-award-vote-2026-1.onrender.com"   // backend domain (if serving frontend too)
 ];
 
 app.use(cors({
@@ -43,7 +41,7 @@ app.use('/api/nominees', nomineeRoutes);
 app.use('/api/votes',    voteRoutes);
 app.use('/api/auth',     authRoutes);
 
-// === Database connection health check on startup ===
+// === Database connection health check ===
 (async () => {
   let client;
   try {
