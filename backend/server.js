@@ -11,7 +11,7 @@ const allowedOrigins = [
   "http://localhost:3000",   // React dev server
   "http://localhost:5173",   // Vite dev server
   "https://telegram-award-vote-2026-drex.vercel.app", // current Vercel frontend
-  "https://telegram-award-vote-2026-1.onrender.com"   // backend domain (if serving frontend too)
+  "https://telegram-award-vote-2026-5.onrender.com"   // backend domain (if serving frontend too)
 ];
 
 app.use(cors({
