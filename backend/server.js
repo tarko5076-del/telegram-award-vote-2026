@@ -1,4 +1,4 @@
-// server.js - Updated with flexible CORS
+// server.js - Fixed CORS setup
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -10,22 +10,14 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:3000",   // React dev server
   "http://localhost:5173",   // Vite dev server
-  "https://telegram-award-vote-2026-drex.vercel.app", // current Vercel frontend
-  "https://telegram-award-vote-2026-5.onrender.com"   // backend domain (if serving frontend too)
+  "http://localhost:5185",   // your current dev port
+  "https://telegram-award-vote-2026-drex.vercel.app" // deployed frontend
 ];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow Postman, curl, etc.
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    callback(new Error("Not allowed by CORS"));
-  },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 204
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true
 }));
 
 // JSON parser
