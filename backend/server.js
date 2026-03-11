@@ -11,13 +11,22 @@ const allowedOrigins = [
   "http://localhost:3000",   // React dev server
   "http://localhost:5173",   // Vite dev server
   "http://localhost:5185",   // your current dev port
-  "https://telegram-award-vote-2026-drex.vercel.app" // deployed frontend
+  "https://telegram-award-vote-2026.vercel.app" // deployed frontend
 ];
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    // allow requests with no origin (like Postman/curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("Not allowed by CORS"));
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  credentials: true
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  optionsSuccessStatus: 204
 }));
 
 // JSON parser
