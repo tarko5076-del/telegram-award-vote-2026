@@ -6,44 +6,29 @@ const pool = require('./config/db');
 
 const app = express();
 
-// === Allowed origins (add more if you have preview/staging branches) ===
+// === Allowed origins ===
 const allowedOrigins = [
-  'http://localhost:3000',                // React dev
-  'http://localhost:5173',                // Vite dev
-  'http://localhost:5185',                // other local port
-  'https://telegram-award-vote-2026.vercel.app',  // your main production frontend
-  // If using Vercel preview branches, you can temporarily add patterns like:
-  // 'https://telegram-award-vote-2026-git-*.vercel.app'
+  'http://localhost:3000',   // React dev server
+  'http://localhost:5173',   // Vite dev server
+  'http://localhost:5185',   // other local dev port
+  'https://telegram-award-vote-2026.vercel.app',
+  'https://ouraward.netlify.app', // production frontend
 ];
 
-// === CORS configuration (simple + reliable) ===
+// === CORS configuration ===
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow Postman/curl
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
   optionsSuccessStatus: 204,
 }));
-
-// === Log incoming Origin for debugging (remove/comment out later if not needed) ===
-app.use((req, res, next) => {
-  console.log(`[CORS DEBUG] Incoming Origin: ${req.headers.origin || 'none'}`);
-  console.log(`[CORS DEBUG] Request: ${req.method} ${req.path}`);
-  next();
-});
-
-// === Explicit preflight handler – FIXED for Express 5+ ===
-app.options('/*path', (req, res) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin) || origin === undefined) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    return res.status(204).end();
-  }
-  res.status(403).json({ error: 'Origin not allowed' });
-});
 
 // === Middleware ===
 app.use(express.json());
