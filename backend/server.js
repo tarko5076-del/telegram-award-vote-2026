@@ -6,16 +6,10 @@ const pool = require('./config/db');
 
 const app = express();
 
-// === Allowed origins ===
-const allowedOrigins = [
-  'http://localhost:3000',   // React dev server
-  'http://localhost:5173',   // Vite dev server
-  'http://localhost:5185',   // other local dev port
-  'https://telegram-award-vote-2026.vercel.app',
-  'https://ouraward.netlify.app', // production frontend
-];
+// === Allowed origins from environment variable ===
+// Example in Render: ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:5185,https://telegram-award-vote-2026.vercel.app,https://ouraward.netlify.app
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
 
-// === CORS configuration ===
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true); // allow Postman/curl
